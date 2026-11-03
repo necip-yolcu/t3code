@@ -275,6 +275,7 @@ import { threadRecentUse } from "@t3tools/shared/paletteSearch";
 const EMPTY_BROWSE_ENTRIES: FilesystemBrowseResult["entries"] = [];
 const ADD_PROJECT_ENTRY_GROUP = "add-project";
 const NEW_THREAD_IN_GROUP = "projects";
+const OPEN_IN_SPLIT_GROUP = "open-in-split";
 
 /** The submenu an open intent starts in; its groups resolve while rendering. */
 function openIntentView(intent: CommandPaletteOpenIntent | null): CommandPaletteView | null {
@@ -288,6 +289,11 @@ function openIntentView(intent: CommandPaletteOpenIntent | null): CommandPalette
       return {
         addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
         groups: [{ value: NEW_THREAD_IN_GROUP, label: "Projects", items: [] }],
+      };
+    case "open-in-split":
+      return {
+        addonIcon: <Columns2Icon className={ADDON_ICON_CLASS} />,
+        groups: [{ value: OPEN_IN_SPLIT_GROUP, label: "Threads", items: [] }],
       };
     case "change-theme":
       return {
@@ -1349,6 +1355,15 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
+  const openInSplitGroup = {
+    value: OPEN_IN_SPLIT_GROUP,
+    label: "Threads",
+    items: openInSplitItems.toSorted(
+      (left, right) =>
+        (right.threadSearch ? threadRecentUse(right.threadSearch) : 0) -
+        (left.threadSearch ? threadRecentUse(left.threadSearch) : 0),
+    ),
+  };
   if (paletteRouteTarget !== null && openInSplitItems.length > 0) {
     actionItems.push({
       kind: "submenu",
@@ -1357,17 +1372,7 @@ function OpenCommandPaletteDialog(props: {
       title: "Open thread in split...",
       icon: <Columns2Icon className={ITEM_ICON_CLASS} />,
       addonIcon: <Columns2Icon className={ADDON_ICON_CLASS} />,
-      groups: [
-        {
-          value: "open-in-split",
-          label: "Threads",
-          items: openInSplitItems.toSorted(
-            (left, right) =>
-              (right.threadSearch ? threadRecentUse(right.threadSearch) : 0) -
-              (left.threadSearch ? threadRecentUse(left.threadSearch) : 0),
-          ),
-        },
-      ],
+      groups: [openInSplitGroup],
     });
   }
 
@@ -1380,6 +1385,7 @@ function OpenCommandPaletteDialog(props: {
         searchTerms: ["split", "pane", "focus", "other", "switch"],
         title: "Focus other split pane",
         icon: <Columns2Icon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitPanes.focusNext",
         run: async () => focusOtherPane(),
       },
       {
@@ -1388,6 +1394,7 @@ function OpenCommandPaletteDialog(props: {
         searchTerms: ["split", "pane", "swap", "flip"],
         title: "Swap split panes",
         icon: <ArrowLeftRightIcon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitPanes.swap",
         run: async () => useChatPanesStore.getState().swap(),
       },
       {
@@ -1395,6 +1402,7 @@ function OpenCommandPaletteDialog(props: {
         value: "action:split-direction",
         searchTerms: ["split", "pane", "stack", "vertical", "horizontal", "side by side"],
         title: sideBySide ? "Stack split panes top and bottom" : "Place split panes side by side",
+        shortcutCommand: "splitPanes.toggleDirection",
         icon: sideBySide ? (
           <Rows2Icon className={ITEM_ICON_CLASS} />
         ) : (
@@ -1408,6 +1416,7 @@ function OpenCommandPaletteDialog(props: {
         searchTerms: ["split", "pane", "close", "single"],
         title: "Close split pane",
         icon: <XIcon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitPanes.close",
         run: async () => closeFocusedPane(),
       },
     );
@@ -1833,20 +1842,22 @@ function OpenCommandPaletteDialog(props: {
         )
       : currentView?.groups[0]?.value === ADD_PROJECT_ENTRY_GROUP
         ? addProjectEntryGroups()
-        : currentView?.groups[0]?.value === NEW_THREAD_IN_GROUP
-          ? [
-              {
-                value: NEW_THREAD_IN_GROUP,
-                label: "Projects",
-                // Every project archived and no "No project" home leaves only adding one.
-                items: projectThreadItems.length > 0 ? projectThreadItems : [addProjectAction],
-              },
-            ]
-          : currentView?.groups[0]?.value === "themes"
-            ? changeThemeItem.groups
-            : currentView?.groups[0]?.value === "appearance"
-              ? changeAppearanceItem.groups
-              : (currentView?.groups ?? rootGroups);
+        : currentView?.groups[0]?.value === OPEN_IN_SPLIT_GROUP
+          ? [openInSplitGroup]
+          : currentView?.groups[0]?.value === NEW_THREAD_IN_GROUP
+            ? [
+                {
+                  value: NEW_THREAD_IN_GROUP,
+                  label: "Projects",
+                  // Every project archived and no "No project" home leaves only adding one.
+                  items: projectThreadItems.length > 0 ? projectThreadItems : [addProjectAction],
+                },
+              ]
+            : currentView?.groups[0]?.value === "themes"
+              ? changeThemeItem.groups
+              : currentView?.groups[0]?.value === "appearance"
+                ? changeAppearanceItem.groups
+                : (currentView?.groups ?? rootGroups);
 
   const isLinkedThreadSearch =
     linkedThreadSearch?.linkedThreads !== undefined && deferredQuery === linkedThreadSearch.query;
