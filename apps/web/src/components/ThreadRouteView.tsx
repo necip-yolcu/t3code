@@ -48,6 +48,7 @@ function useOpenThreadFamily(threadRef: ScopedThreadRef | null, missing: boolean
  * Unkeyed so route changes reuse one ChatView, which only survives while the same pane renders it.
  * `background` keeps the thread inert under Settings or Usage; `passive` is an unfocused split pane
  * that never moves the route or takes global shortcuts; `unavailable` replaces a missing thread.
+ * Draft promotion runs in the draft store; this only follows the redirect it leaves behind.
  */
 export function ThreadRouteContent({
   target,
