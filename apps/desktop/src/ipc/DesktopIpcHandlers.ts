@@ -72,6 +72,7 @@ import {
 import * as PreviewIpc from "./methods/preview.ts";
 import * as AppActivationIpc from "./methods/appActivation.ts";
 import * as WebLinksIpc from "./methods/webLinks.ts";
+import * as NotionTodosIpc from "./methods/notionTodos.ts";
 import {
   completeLegacyLocalStorage,
   takeLegacyLocalStorage,
@@ -107,6 +108,9 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(getLocalEnvironmentBearerToken);
 
   yield* ipc.handle(getClientSettings);
+  yield* ipc.handle(NotionTodosIpc.getNotionTodoConfig);
+  yield* ipc.handle(NotionTodosIpc.setNotionTodoConfig);
+  yield* ipc.handle(NotionTodosIpc.listNotionTodos);
   yield* ipc.handle(setClientSettings);
   yield* ipc.handle(getConnectionCatalog);
   yield* ipc.handle(getSnapShotState);

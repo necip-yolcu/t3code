@@ -132,3 +132,6 @@ export const RECEIVE_PROVIDER_AUTH_CALLBACK_CHANNEL = "desktop:receive-provider-
 export const CANCEL_PROVIDER_AUTH_CALLBACK_CHANNEL = "desktop:cancel-provider-auth-callback";
 export const TAKE_LEGACY_LOCAL_STORAGE_CHANNEL = "desktop:take-legacy-local-storage";
 export const COMPLETE_LEGACY_LOCAL_STORAGE_CHANNEL = "desktop:complete-legacy-local-storage";
+export const T3PLUS_NOTION_GET_CONFIG_CHANNEL = "t3plus:notion-get-config";
+export const T3PLUS_NOTION_SET_CONFIG_CHANNEL = "t3plus:notion-set-config";
+export const T3PLUS_NOTION_LIST_CHANNEL = "t3plus:notion-list";

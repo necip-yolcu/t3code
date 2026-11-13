@@ -85,6 +85,14 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
 
+// T3+ only: read-only Notion todos for the right panel; the token never reaches the page.
+contextBridge.exposeInMainWorld("t3plusNotion", {
+  getConfig: () => ipcRenderer.invoke(IpcChannels.T3PLUS_NOTION_GET_CONFIG_CHANNEL),
+  setConfig: (config: { token: string; database: string }) =>
+    ipcRenderer.invoke(IpcChannels.T3PLUS_NOTION_SET_CONFIG_CHANNEL, config),
+  listTodos: () => ipcRenderer.invoke(IpcChannels.T3PLUS_NOTION_LIST_CHANNEL),
+});
+
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);

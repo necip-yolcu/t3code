@@ -43,6 +43,7 @@ import {
   FileDiff,
   Files,
   Globe2,
+  ListTodo,
   MessagesSquare,
   Plus,
   TerminalSquare,
@@ -143,6 +144,8 @@ export interface RightPanelTabsProps {
   onAddDevice: () => void;
   /** Absent where side chats are not offered. */
   onAddSideChat?: (() => void) | undefined;
+  /** T3+ desktop only. */
+  onAddNotionTodos?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -324,6 +327,8 @@ function RightPanelEmptyState(props: {
   onAddDevice: () => void;
   /** Absent where side chats are not offered. */
   onAddSideChat?: (() => void) | undefined;
+  /** T3+ desktop only. */
+  onAddNotionTodos?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -394,6 +399,18 @@ function RightPanelEmptyState(props: {
       disabledReason: SURFACE_UNAVAILABLE_HINTS.device,
       onClick: props.onAddDevice,
     },
+    ...(props.onAddNotionTodos
+      ? [
+          {
+            label: "Notion todos",
+            icon: ListTodo,
+            shortcut: "N",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddNotionTodos,
+          },
+        ]
+      : []),
     ...(props.onAddSideChat
       ? [
           {
@@ -590,6 +607,8 @@ function surfaceTitle(
       return `#${surface.number}`;
     case "pull-requests":
       return "Pull requests";
+    case "notion-todos":
+      return "Notion todos";
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
     case "side-chat":
@@ -682,6 +701,8 @@ function SurfaceIcon({
       );
     case "pull-requests":
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
+    case "notion-todos":
+      return <ListTodo className="size-3 shrink-0" />;
     case "side-chat":
       return <SideChatTabIcon environmentId={environmentId} threadId={surface.threadId} />;
     case "device":
@@ -1151,6 +1172,18 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       disabledReason: SURFACE_DISABLED_REASONS.device,
       onClick: props.onAddDevice,
     },
+    ...(props.onAddNotionTodos
+      ? [
+          {
+            label: "Notion todos",
+            icon: ListTodo,
+            shortcut: "N",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddNotionTodos,
+          },
+        ]
+      : []),
     ...(props.onAddSideChat
       ? [
           {
@@ -1539,6 +1572,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddPullRequests={props.onAddPullRequests}
             onAddDevice={props.onAddDevice}
             onAddSideChat={props.onAddSideChat}
+            onAddNotionTodos={props.onAddNotionTodos}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}
             diffAvailable={props.diffAvailable}
