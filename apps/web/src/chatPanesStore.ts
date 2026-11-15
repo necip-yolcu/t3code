@@ -95,6 +95,14 @@ export function backgroundChatPaneThreadRefs(
   );
 }
 
+/** Whether the unfocused panes are on screen: the split fits and no pane is maximized. */
+export function chatPanesShowUnfocused(state: {
+  readonly splitFits: boolean;
+  readonly maximized: boolean;
+}): boolean {
+  return state.splitFits && !state.maximized;
+}
+
 /** The thread a restart resumes, so a split reopens as it was left: its focused pane's. */
 export function chatPaneRestoreTarget(layout: ChatPanesLayout): ThreadRouteTarget | null {
   if (!isChatSplitOpen(layout)) return null;
@@ -299,6 +307,9 @@ interface ChatPanesStoreState {
   /** Whether the chat area has room to render every pane of a split. */
   readonly splitFits: boolean;
   readonly setSplitFits: (splitFits: boolean) => void;
+  /** The focused pane fills the chat area until restored; the split itself is kept. */
+  readonly maximized: boolean;
+  readonly toggleMaximized: () => void;
   readonly pendingBeside: PendingChatPaneBeside | null;
   /** The next route opens beside `anchor`; cleared once a route uses it or `clear` runs. */
   readonly openNextBeside: (anchor: ThreadRouteTarget) => () => void;
@@ -322,6 +333,13 @@ export const useChatPanesStore = create<ChatPanesStoreState>()(
       splitFits: true,
       setSplitFits: (splitFits) =>
         set((state) => (state.splitFits === splitFits ? state : { splitFits })),
+      maximized: false,
+      toggleMaximized: () =>
+        set((state) =>
+          state.maximized || isChatSplitOpen(state.layout)
+            ? { maximized: !state.maximized }
+            : state,
+        ),
       pendingBeside: null,
       openNextBeside: (anchor) => {
         const pending = { anchor, paneId: randomUUID() };
@@ -339,16 +357,20 @@ export const useChatPanesStore = create<ChatPanesStoreState>()(
             layoutWithPendingBeside(state.layout, pending, routeTarget),
             routeTarget,
           );
-          if (used) return { layout, pendingBeside: null };
+          if (used) return { layout, pendingBeside: null, maximized: false };
           return layout === state.layout ? state : { layout };
         }),
       openSplit: (input) =>
         set((state) => ({
           layout: openChatSplit(state.layout, { ...input, createPaneId: randomUUID }),
+          maximized: false,
         })),
       closePane: (paneId) => {
         const result = closeChatPane(get().layout, paneId);
-        set({ layout: result.layout });
+        set((state) => ({
+          layout: result.layout,
+          maximized: state.maximized && isChatSplitOpen(result.layout),
+        }));
         return result.focusTarget;
       },
       setRatio: (ratio) =>

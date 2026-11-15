@@ -47,6 +47,14 @@ export function createChatPaneCommands(router: AnyRouter) {
     if (next && next.id !== layout.activePaneId) navigateTo(next.target);
   };
 
+  /** Focuses the `position`th pane (1-based), as the panes are laid out. */
+  const focusPaneNumber = (position: number) => {
+    const { layout } = useChatPanesStore.getState();
+    if (!isChatSplitOpen(layout)) return;
+    const pane = layout.panes[position - 1];
+    if (pane && pane.id !== layout.activePaneId) navigateTo(pane.target);
+  };
+
   const closeFocusedPane = () => {
     const store = useChatPanesStore.getState();
     const { activePaneId } = store.layout;
@@ -122,6 +130,7 @@ export function createChatPaneCommands(router: AnyRouter) {
     focusNextPane: () => focusPaneAt(1),
     focusPreviousPane: () => focusPaneAt(-1),
     focusOtherPane: () => focusPaneAt(1),
+    focusPaneNumber,
     closeFocusedPane,
     closeOtherPanes,
     closePaneShowing,

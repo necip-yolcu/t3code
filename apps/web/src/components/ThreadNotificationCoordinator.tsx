@@ -18,7 +18,11 @@ import {
   ShieldQuestionIcon,
 } from "lucide-react";
 
-import { backgroundChatPaneThreadRefs, useChatPanesStore } from "../chatPanesStore";
+import {
+  backgroundChatPaneThreadRefs,
+  chatPanesShowUnfocused,
+  useChatPanesStore,
+} from "../chatPanesStore";
 import { getClientSettings, subscribeClientSettings } from "../hooks/useSettings";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { isWindowsPlatform } from "../lib/utils";
@@ -157,7 +161,7 @@ export function startThreadNotifications(
       !backgroundChatPaneThreadRefs(
         useChatPanesStore.getState().layout,
         resolveThreadRouteTarget(active),
-        useChatPanesStore.getState().splitFits,
+        chatPanesShowUnfocused(useChatPanesStore.getState()),
       ).some((ref) => ref.environmentId === environmentId && ref.threadId === thread.id)
     ) {
       const toastKey = threadKey({ environmentId, threadId: thread.id });

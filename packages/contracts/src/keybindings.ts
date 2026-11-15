@@ -34,6 +34,14 @@ export const MODEL_PICKER_JUMP_KEYBINDING_COMMANDS = [
 export type ModelPickerJumpKeybindingCommand =
   (typeof MODEL_PICKER_JUMP_KEYBINDING_COMMANDS)[number];
 
+export const SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS = [
+  "splitPanes.focus.1",
+  "splitPanes.focus.2",
+  "splitPanes.focus.3",
+  "splitPanes.focus.4",
+] as const;
+export type SplitPaneFocusKeybindingCommand = (typeof SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS)[number];
+
 const THREAD_KEYBINDING_COMMANDS = [
   "thread.stop",
   "thread.steerQueuedMessage",
@@ -112,6 +120,8 @@ export const STATIC_KEYBINDING_COMMANDS = [
   "splitPanes.toggleDirection",
   "splitPanes.focusNext",
   "splitPanes.focusPrevious",
+  "splitPanes.toggleMaximized",
+  ...SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS,
   "usage.cost",
   "usage.tokens",
   "usage.limits",

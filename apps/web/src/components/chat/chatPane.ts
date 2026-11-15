@@ -15,6 +15,9 @@ export interface ChatPaneContextValue {
   readonly otherPaneThreadKeys: ReadonlySet<string>;
   readonly swap: () => void;
   readonly setDirection: (direction: ChatPaneDirection) => void;
+  /** The focused pane fills the chat area. */
+  readonly maximized: boolean;
+  readonly toggleMaximized: () => void;
   readonly close: () => void;
 }
 

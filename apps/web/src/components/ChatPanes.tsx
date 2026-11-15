@@ -23,6 +23,7 @@ import {
   type ResolvedChatPane,
 } from "../chatPanesStore";
 import { useComposerDraftStore } from "../composerDraftStore";
+import { useQuietThreadShell } from "../state/entities";
 import { ComposerHandleContext, useComposerHandleContext } from "../composerHandleContext";
 import { useResizeDrag } from "../hooks/useResizeDrag";
 import { useStableCallback } from "../hooks/useStableCallback";
@@ -35,6 +36,7 @@ import {
   type ThreadRouteTarget,
 } from "../threadRoutes";
 import { ChatPaneContext, type ChatPaneContextValue } from "./chat/chatPane";
+import { resolveThreadStatusPill, type ThreadStatusPill } from "./Sidebar.logic";
 import { ThreadRouteContent } from "./ThreadRouteView";
 import { Button } from "./ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
@@ -68,6 +70,7 @@ export function ChatPanes({
   const navigate = useNavigate();
   const storedLayout = useChatPanesStore((state) => state.layout);
   const pendingBeside = useChatPanesStore((state) => state.pendingBeside);
+  const maximized = useChatPanesStore((state) => state.maximized);
   // A new thread opened beside shows in its own pane from its first render, before the commit.
   const layout = layoutWithPendingBeside(storedLayout, pendingBeside, routeTarget);
   const panes = resolveChatPanes(layout, routeTarget);
@@ -100,7 +103,7 @@ export function ChatPanes({
     measure();
     return observeResize(container, measure);
   };
-  const alone = !splitOpen || grid === null;
+  const alone = !splitOpen || grid === null || maximized;
   // Two panes keep the draggable divider; three or four share the area evenly.
   const paneGrid = alone || paneCount < 3 ? null : grid;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records the routed thread into the persisted pane layout
@@ -381,6 +384,8 @@ function ChatPane({
   const composerHandle = useComposerHandleContext();
   const swap = useChatPanesStore((state) => state.swap);
   const setDirection = useChatPanesStore((state) => state.setDirection);
+  const maximized = useChatPanesStore((state) => state.maximized);
+  const toggleMaximized = useChatPanesStore((state) => state.toggleMaximized);
   const close = useStableCallback(onClose);
   // Code can focus a pane after it lost focus (an async editor focus, a dialog restoring focus);
   // that is not the user switching panes, so the focused pane's composer takes it instead.
@@ -410,6 +415,8 @@ function ChatPane({
     otherPaneThreadKeys: new Set(otherPaneThreadKeys === "" ? [] : otherPaneThreadKeys.split("\n")),
     swap,
     setDirection,
+    maximized,
+    toggleMaximized,
     close,
   };
   return (
@@ -442,6 +449,7 @@ function ChatPane({
       onPointerDownCapture={passive ? onFocus : undefined}
       onFocusCapture={passive ? onFocusIn : undefined}
     >
+      {!alone && passive ? <ChatPaneAttention target={pane.target} /> : null}
       {/* The app-wide composer handle belongs to the focused pane's composer. */}
       <ComposerHandleContext value={passive ? null : composerHandle}>
         <ChatPaneContext value={inSplit ? chatPaneValue : null}>
@@ -455,6 +463,61 @@ function ChatPane({
         </ChatPaneContext>
       </ComposerHandleContext>
     </div>
+  );
+}
+
+/** Statuses that wait on the user, outlined in the pane's colour while it is unfocused. */
+const ATTENTION_RING_CLASSES: Partial<Record<ThreadStatusPill["label"], string>> = {
+  "Pending Approval": "ring-amber-500 dark:ring-amber-300/90",
+  "Awaiting Input": "ring-indigo-500 dark:ring-indigo-300/90",
+  "Guest Request": "ring-guest",
+  "Plan Ready": "ring-violet-500 dark:ring-violet-300/90",
+  Failed: "ring-red-500 dark:ring-red-300/90",
+  Completed: "ring-emerald-500 dark:ring-emerald-300/90",
+};
+
+/**
+ * An unfocused pane keeps marking its thread visited, so completions and failures count as
+ * unseen against when the pane lost focus instead; this mounts at that moment.
+ */
+function ChatPaneAttention({ target }: { target: ThreadRouteTarget }) {
+  const [unfocusedAt] = useState(() => new Date().toISOString());
+  const draftSession = useComposerDraftStore((store) =>
+    target.kind === "draft" ? store.getDraftSession(target.draftId) : null,
+  );
+  const threadRef =
+    target.kind === "server"
+      ? target.threadRef
+      : draftSession
+        ? scopeThreadRef(draftSession.environmentId, draftSession.threadId)
+        : null;
+  const shell = useQuietThreadShell(threadRef);
+  const status = shell
+    ? resolveThreadStatusPill({ thread: { ...shell, lastVisitedAt: unfocusedAt } })
+    : null;
+  const ringClass = status ? ATTENTION_RING_CLASSES[status.label] : undefined;
+  if (!status || ringClass === undefined) return null;
+  return (
+    <>
+      <div
+        aria-hidden
+        className={cn("pointer-events-none absolute inset-0 z-30 ring-2 ring-inset", ringClass)}
+      />
+      <div
+        role="status"
+        className="pointer-events-none absolute inset-x-0 top-[calc(var(--workspace-topbar-height)+0.5rem)] z-30 flex justify-center"
+      >
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-0.5 text-xs shadow-sm",
+            status.colorClass,
+          )}
+        >
+          <span className={cn("size-1.5 rounded-full", status.dotClass)} />
+          {status.label}
+        </span>
+      </div>
+    </>
   );
 }
 

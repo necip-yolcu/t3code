@@ -332,14 +332,18 @@ beside the current one, press Alt+Enter on a project in **New thread in...**, or
 split button on its row.
 
 The focused pane is the one the sidebar, the command palette, and shortcuts act on.
-Click into another pane, or press `mod+alt+]`, to switch. Opening a thread from the
+Click into another pane, press `mod+alt+]`, or jump straight to one with `mod+alt+1`
+to `mod+alt+4`. Opening a thread from the
 sidebar replaces the focused pane's thread; a thread already open in another pane
 moves focus there instead, so one thread never shows twice. With four panes open, a
 fifth thread takes the place of an unfocused one.
 
 With two panes, drag the divider to resize them, or double-click it to make them even;
 three or four panes share the space evenly. The pane menu in each header swaps the
-panes, stacks them top and bottom, or closes one.
+panes, stacks them top and bottom, maximizes the focused pane until you show all panes
+again (`mod+alt+z`), or closes one. An unfocused pane is outlined when its thread needs
+you: waiting for approval or an answer, a plan ready, or a turn that finished or failed
+since you left it.
 Closing a pane does not stop its thread. Press `mod+\` again to go back to one pane.
 
 Panes that do not fit in one row wrap into two columns. When the window is too small

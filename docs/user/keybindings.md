@@ -183,7 +183,9 @@ through the pages you have visited, like a browser's back and forward buttons.
 open. The other split commands only run while a split is open: `splitPanes.close`
 (`mod+alt+\`), `splitPanes.swap` (`mod+shift+\`), `splitPanes.toggleDirection`
 (`mod+alt+shift+\`), and `splitPanes.focusNext` and `splitPanes.focusPrevious`
-(`mod+alt+]` and `mod+alt+[`). None of them run while a terminal has focus.
+(`mod+alt+]` and `mod+alt+[`), `splitPanes.focus.1` to `splitPanes.focus.4`
+(`mod+alt+1` to `mod+alt+4`), and `splitPanes.toggleMaximized` (`mod+alt+z`). None of
+them run while a terminal has focus.
 
 `chat.new` may ask you to choose a project when there is more than one.
 `chat.newLocal` skips that chooser. Both use your

@@ -7,6 +7,7 @@ import {
   MODEL_PICKER_JUMP_KEYBINDING_COMMANDS,
   type ResolvedKeybindingRule,
   type ResolvedKeybindingsConfig,
+  SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS,
   THREAD_JUMP_KEYBINDING_COMMANDS,
 } from "@t3tools/contracts";
 
@@ -139,6 +140,16 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
     command: "splitPanes.focusPrevious",
     when: "splitPanesOpen && !terminalFocus",
   },
+  {
+    key: "mod+alt+z",
+    command: "splitPanes.toggleMaximized",
+    when: "splitPanesOpen && !terminalFocus",
+  },
+  ...SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS.map((command, index) => ({
+    key: `mod+alt+${index + 1}`,
+    command,
+    when: "splitPanesOpen && !terminalFocus",
+  })),
   { key: "mod+shift+[", command: "thread.previous" },
   { key: "mod+shift+]", command: "thread.next" },
   { key: "mod+shift+c", command: "thread.copyReference", when: "!terminalFocus" },

@@ -258,7 +258,11 @@ import {
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import { useChatPaneCommands } from "../hooks/useChatPaneCommands";
 import { useShallow } from "zustand/react/shallow";
-import { backgroundChatPaneThreadRefs, useChatPanesStore } from "../chatPanesStore";
+import {
+  backgroundChatPaneThreadRefs,
+  chatPanesShowUnfocused,
+  useChatPanesStore,
+} from "../chatPanesStore";
 import {
   SidebarSearchResultRow,
   SortableThreadRow,
@@ -1074,7 +1078,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const backgroundPaneThreadKeys = new Set(
     useChatPanesStore(
       useShallow((state) =>
-        backgroundChatPaneThreadRefs(state.layout, routeTarget, state.splitFits).map(
+        backgroundChatPaneThreadRefs(state.layout, routeTarget, chatPanesShowUnfocused(state)).map(
           scopedThreadKey,
         ),
       ),

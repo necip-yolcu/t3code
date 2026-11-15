@@ -1,4 +1,4 @@
-import { Columns2Icon, Rows2Icon } from "lucide-react";
+import { Columns2Icon, Maximize2Icon, Rows2Icon } from "lucide-react";
 import { use } from "react";
 
 import { Button } from "../ui/button";
@@ -10,7 +10,8 @@ export function ChatPaneMenu() {
   const chatPane = use(ChatPaneContext);
   if (chatPane === null) return null;
   const sideBySide = chatPane.direction === "row";
-  const Icon = sideBySide ? Columns2Icon : Rows2Icon;
+  // While maximized the other panes are hidden; the icon says so.
+  const Icon = chatPane.maximized ? Maximize2Icon : sideBySide ? Columns2Icon : Rows2Icon;
   return (
     <Menu>
       <MenuTrigger
@@ -19,6 +20,9 @@ export function ChatPaneMenu() {
         <Icon className="size-3.5" />
       </MenuTrigger>
       <MenuPopup align="end" side="bottom" sideOffset={6}>
+        <MenuItem onClick={chatPane.toggleMaximized}>
+          {chatPane.maximized ? "Show all panes" : "Maximize pane"}
+        </MenuItem>
         <MenuItem onClick={chatPane.swap}>Swap panes</MenuItem>
         <MenuItem onClick={() => chatPane.setDirection(sideBySide ? "column" : "row")}>
           {sideBySide ? "Stack top and bottom" : "Place side by side"}

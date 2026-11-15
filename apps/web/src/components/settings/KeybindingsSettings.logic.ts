@@ -386,6 +386,10 @@ export function commandLabel(command: KeybindingCommand): string {
   if (command === "preview.focusUrl") return "Preview: Focus URL";
   if (command === "splitPanes.toggle") return "Split Panes: Open or Close Split";
   if (command === "splitPanes.close") return "Split Panes: Close Focused Pane";
+  if (command === "splitPanes.toggleMaximized") return "Split Panes: Maximize or Restore Pane";
+  if (String(command).startsWith("splitPanes.focus.")) {
+    return `Split Panes: Focus Pane ${String(command).slice("splitPanes.focus.".length)}`;
+  }
   const raw = String(command);
   if (raw.startsWith("script.") && raw.endsWith(".run")) {
     return `Run Script: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;

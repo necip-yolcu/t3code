@@ -79,7 +79,7 @@ import {
   TextSearchIcon,
   UserPlusIcon,
 } from "lucide-react";
-import { ArrowLeftRightIcon, Columns2Icon, Rows2Icon, XIcon } from "lucide-react";
+import { ArrowLeftRightIcon, Columns2Icon, Maximize2Icon, Rows2Icon, XIcon } from "lucide-react";
 import { isChatSplitOpen, useChatPanesStore } from "../chatPanesStore";
 import { useChatPaneCommands } from "../hooks/useChatPaneCommands";
 import { openThreadFind } from "./chat/threadFindStore";
@@ -1276,6 +1276,7 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const chatPanesLayout = useChatPanesStore((state) => state.layout);
+  const chatPanesMaximized = useChatPanesStore((state) => state.maximized);
   const { focusOtherPane, closeFocusedPane, openNextRouteBeside } = useChatPaneCommands();
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
@@ -1390,6 +1391,15 @@ function OpenCommandPaletteDialog(props: {
         icon: <Columns2Icon className={ITEM_ICON_CLASS} />,
         shortcutCommand: "splitPanes.focusNext",
         run: async () => focusOtherPane(),
+      },
+      {
+        kind: "action",
+        value: "action:split-maximize",
+        searchTerms: ["split", "pane", "maximize", "zoom", "restore", "full"],
+        title: chatPanesMaximized ? "Show all split panes" : "Maximize split pane",
+        icon: <Maximize2Icon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitPanes.toggleMaximized",
+        run: async () => useChatPanesStore.getState().toggleMaximized(),
       },
       {
         kind: "action",

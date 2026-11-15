@@ -1,3 +1,4 @@
+import { SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS } from "@t3tools/contracts";
 import type { AnyRouter } from "@tanstack/react-router";
 
 import { isChatSplitOpen, useChatPanesStore } from "../chatPanesStore";
@@ -33,6 +34,13 @@ export function installChatPaneCommands(router: AnyRouter): () => void {
       }),
       "splitPanes.focusNext": run(commands.focusNextPane),
       "splitPanes.focusPrevious": run(commands.focusPreviousPane),
+      "splitPanes.toggleMaximized": run(() => useChatPanesStore.getState().toggleMaximized()),
+      ...Object.fromEntries(
+        SPLIT_PANE_FOCUS_KEYBINDING_COMMANDS.map((command, index) => [
+          command,
+          run(() => commands.focusPaneNumber(index + 1)),
+        ]),
+      ),
     },
     {
       when: () =>

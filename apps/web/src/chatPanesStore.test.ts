@@ -5,6 +5,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   backgroundChatPaneThreadRefs,
   chatPaneRestoreTarget,
+  chatPanesShowUnfocused,
   closeChatPane,
   isChatSplitOpen,
   commitChatPanes,
@@ -14,6 +15,7 @@ import {
   resolveChatPanes,
   SINGLE_CHAT_PANE_LAYOUT,
   swapChatPanes,
+  useChatPanesStore,
   type ChatPanesLayout,
 } from "./chatPanesStore";
 import { DraftId } from "./composerDraftStore";
@@ -77,6 +79,22 @@ describe("chat panes", () => {
     const layout = split(thread("a"), thread("b"));
     expect(backgroundChatPaneThreadRefs(layout, thread("a"), true)).toEqual([threadRef("b")]);
     expect(backgroundChatPaneThreadRefs(layout, thread("a"), false)).toEqual([]);
+  });
+
+  it("maximizing hides the unfocused panes until shown again, and ends with the split", () => {
+    const store = useChatPanesStore;
+    store.setState({ layout: SINGLE_CHAT_PANE_LAYOUT, maximized: false, splitFits: true });
+    store.getState().toggleMaximized();
+    expect(store.getState().maximized).toBe(false);
+    store.getState().openSplit({ routeTarget: thread("a"), target: thread("b") });
+    store.getState().toggleMaximized();
+    expect(chatPanesShowUnfocused(store.getState())).toBe(false);
+    store.getState().toggleMaximized();
+    expect(chatPanesShowUnfocused(store.getState())).toBe(true);
+    store.getState().toggleMaximized();
+    const other = store.getState().layout.panes[1]!;
+    store.getState().closePane(other.id);
+    expect(store.getState().maximized).toBe(false);
   });
 
   it("commits nothing when the route already matches the layout", () => {
