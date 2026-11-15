@@ -214,6 +214,8 @@ export interface CommandPaletteActionItem extends CommandPaletteItem {
   readonly kind: "action";
   readonly keepOpen?: boolean;
   readonly run: () => Promise<void>;
+  /** The same action in a new split pane beside the current thread; Alt+Enter or the row button. */
+  readonly runBeside?: () => Promise<void>;
   /** A pin toggle on the row, also reached with the pin shortcut while the row is highlighted. */
   readonly pin?: CommandPaletteItemPin;
 }
@@ -375,11 +377,13 @@ export function buildProjectActionItems(input: {
   valuePrefix: string;
   icon: (project: CommandPaletteProject) => ReactNode;
   runProject: (project: CommandPaletteProject) => Promise<void>;
+  runProjectBeside?: (project: CommandPaletteProject) => Promise<void>;
   searchTerms?: (project: CommandPaletteProject) => ReadonlyArray<string>;
   renderDescription?: (project: CommandPaletteProject) => ReactNode;
   shortcutCommand?: KeybindingCommand;
   pin?: (project: CommandPaletteProject) => CommandPaletteItemPin | null;
 }): CommandPaletteActionItem[] {
+  const runProjectBeside = input.runProjectBeside;
   return input.projects.map((project) => {
     const pin = input.pin?.(project) ?? null;
     return {
@@ -399,6 +403,7 @@ export function buildProjectActionItems(input: {
       run: async () => {
         await input.runProject(project);
       },
+      ...(runProjectBeside ? { runBeside: () => runProjectBeside(project) } : {}),
     };
   });
 }

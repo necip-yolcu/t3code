@@ -322,24 +322,28 @@ answer its questions.
 
 ## Split panes
 
-On web and desktop, two threads can sit side by side, each with its own composer,
-terminal, and right panel. Both keep running and streaming while you work in either.
+On web and desktop, up to four threads can sit side by side, each with its own composer,
+terminal, and right panel. All keep running and streaming while you work in any of them.
 
 Right-click a thread in the sidebar and choose **Open in split**, or Alt-click it.
 From the command palette, choose **Open thread in split...**, or press `mod+\` to pick
-a thread. The thread opens beside the current one and takes focus.
+a thread. The thread opens beside the current one and takes focus. To start a new thread
+beside the current one, press Alt+Enter on a project in **New thread in...**, or use the
+split button on its row.
 
 The focused pane is the one the sidebar, the command palette, and shortcuts act on.
-Click into the other pane, or press `mod+alt+]`, to switch. Opening a thread from the
-sidebar replaces the focused pane's thread; a thread already open in the other pane
-moves focus there instead, so one thread never shows twice.
+Click into another pane, or press `mod+alt+]`, to switch. Opening a thread from the
+sidebar replaces the focused pane's thread; a thread already open in another pane
+moves focus there instead, so one thread never shows twice. With four panes open, a
+fifth thread takes the place of an unfocused one.
 
-Drag the divider to resize the panes, or double-click it to make them even. The pane
-menu in each header swaps the panes, stacks them top and bottom, or closes one.
+With two panes, drag the divider to resize them, or double-click it to make them even;
+three or four panes share the space evenly. The pane menu in each header swaps the
+panes, stacks them top and bottom, or closes one.
 Closing a pane does not stop its thread. Press `mod+\` again to go back to one pane.
 
-When the window is too narrow for two panes, only the focused one shows until there
-is room again. The split comes back after a restart, focused on the same thread.
+Panes that do not fit in one row wrap into two columns. When the window is too small
+even for that, only the focused pane shows until there is room again. The split comes back after a restart, focused on the same thread.
 
 ## Snooze until later
 

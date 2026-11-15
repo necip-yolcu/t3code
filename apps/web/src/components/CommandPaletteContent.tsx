@@ -42,6 +42,8 @@ type CommandPaletteContentProps = Omit<ComponentProps<typeof Command>, "children
   readonly children: ReactNode;
   readonly escapeLabel?: ReactNode;
   readonly footerActionLabel?: ReactNode;
+  /** Shows the Alt+Enter hint while the list has rows that also open beside. */
+  readonly besideHint?: boolean;
   readonly footerTrailing?: ReactNode;
   readonly inputAccessory?: ReactNode;
   readonly inputProps: ComponentProps<typeof CommandInput>;
@@ -55,6 +57,7 @@ export function CommandPaletteContent({
   children,
   escapeLabel = "Close",
   footerActionLabel,
+  besideHint = false,
   footerTrailing,
   inputAccessory,
   inputProps,
@@ -105,6 +108,13 @@ export function CommandPaletteContent({
               <KbdGroup>
                 <Kbd>Enter</Kbd>
                 <span>{footerActionLabel}</span>
+              </KbdGroup>
+            ) : null}
+            {besideHint ? (
+              <KbdGroup>
+                <Kbd>Alt</Kbd>
+                <Kbd>Enter</Kbd>
+                <span className="whitespace-nowrap">Open beside</span>
               </KbdGroup>
             ) : null}
             {showBackHint ? (

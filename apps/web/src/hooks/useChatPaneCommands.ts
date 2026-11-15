@@ -87,8 +87,38 @@ export function createChatPaneCommands(router: AnyRouter) {
     }
   };
 
+  /**
+   * Runs `start`, whose navigation lands in a new pane beside the routed thread instead of
+   * replacing it, such as a new thread opened from the project picker.
+   */
+  const openNextRouteBeside = async (start: () => Promise<unknown>) => {
+    const anchor = readRouteTarget();
+    if (anchor === null) {
+      await start();
+      return;
+    }
+    const clear = useChatPanesStore.getState().openNextBeside(anchor);
+    try {
+      await start();
+    } finally {
+      // A request that never left the anchor (a reused draft, an abandoned one) must not carry
+      // the flag to a later navigation; one that left it was taken by the pane commit.
+      const route = readRouteTarget();
+      const left =
+        route !== null &&
+        (route.kind !== anchor.kind ||
+          (route.kind === "server" && anchor.kind === "server"
+            ? scopedThreadKey(route.threadRef) !== scopedThreadKey(anchor.threadRef)
+            : route.kind === "draft" &&
+              anchor.kind === "draft" &&
+              route.draftId !== anchor.draftId));
+      if (!left) clear();
+    }
+  };
+
   return {
     openInSplit,
+    openNextRouteBeside,
     focusNextPane: () => focusPaneAt(1),
     focusPreviousPane: () => focusPaneAt(-1),
     focusOtherPane: () => focusPaneAt(1),

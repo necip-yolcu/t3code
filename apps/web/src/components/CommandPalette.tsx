@@ -844,6 +844,19 @@ function OpenCommandPaletteDialog(props: {
         currentProjectId === null
           ? undefined
           : projectPickerEntries.find((entry) => entry.isPreferred);
+      const newThreadProjectRef = (project: CommandPaletteProject) => {
+        const group = projectGroupByTargetKey.get(`${project.environmentId}:${project.id}`);
+        const contextualRefBelongsToGroup =
+          contextualProjectRef !== null &&
+          group?.memberProjectRefs.some(
+            (projectRef) =>
+              projectRef.environmentId === contextualProjectRef.environmentId &&
+              projectRef.projectId === contextualProjectRef.projectId,
+          );
+        return contextualRefBelongsToGroup
+          ? contextualProjectRef
+          : scopeProjectRef(project.environmentId, project.id);
+      };
       const projectItems = buildNewThreadInProjectItems({
         projects: pickerProjects.filter((project) => !isScratch(project)),
         currentProjectKey: currentEntry
@@ -853,20 +866,10 @@ function OpenCommandPaletteDialog(props: {
         locationByEnvironmentId: projectEnvironmentLocationById,
         pin: projectPin,
         runProject: async (project) => {
-          const group = projectGroupByTargetKey.get(`${project.environmentId}:${project.id}`);
-          const contextualRefBelongsToGroup =
-            contextualProjectRef !== null &&
-            group?.memberProjectRefs.some(
-              (projectRef) =>
-                projectRef.environmentId === contextualProjectRef.environmentId &&
-                projectRef.projectId === contextualProjectRef.projectId,
-            );
-          await handleNewThread(
-            contextualRefBelongsToGroup
-              ? contextualProjectRef
-              : scopeProjectRef(project.environmentId, project.id),
-          );
+          await handleNewThread(newThreadProjectRef(project));
         },
+        runProjectBeside: (project) =>
+          openNextRouteBeside(() => handleNewThread(newThreadProjectRef(project))),
       });
       if (scratchTargetEnvironmentId === null) return projectItems;
 
@@ -1273,7 +1276,7 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const chatPanesLayout = useChatPanesStore((state) => state.layout);
-  const { focusOtherPane, closeFocusedPane } = useChatPaneCommands();
+  const { focusOtherPane, closeFocusedPane, openNextRouteBeside } = useChatPaneCommands();
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
   if (projects.length > 0) {
@@ -2693,6 +2696,29 @@ function OpenCommandPaletteDialog(props: {
       return;
     }
 
+    if (
+      event.key === "Enter" &&
+      event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      const highlightedItem = findHighlightedCommandPaletteItem(
+        displayedGroups,
+        highlightedItemValue ??
+          (autoHighlightsFirstRow ? resultRows.itemValues[0] : undefined) ??
+          null,
+      );
+      if (highlightedItem?.kind === "action" && highlightedItem.runBeside) {
+        (event as typeof event & { preventBaseUIHandler?: () => void }).preventBaseUIHandler?.();
+        event.preventDefault();
+        event.stopPropagation();
+        executeItemBeside(highlightedItem);
+        return;
+      }
+    }
+
     if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
 
     if (event.key === "Tab" && isBrowsing && !relativePathNeedsActiveProject) {
@@ -2767,6 +2793,20 @@ function OpenCommandPaletteDialog(props: {
     }
 
     void item.run().catch((error: unknown) => {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: "Unable to run command",
+          description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        }),
+      );
+    });
+  }
+
+  function executeItemBeside(item: CommandPaletteActionItem): void {
+    if (item.disabled || !item.runBeside) return;
+    setOpen(false);
+    void item.runBeside().catch((error: unknown) => {
       toastManager.add(
         stackedThreadToast({
           type: "error",
@@ -2962,6 +3002,9 @@ function OpenCommandPaletteDialog(props: {
       aria-label="Command palette"
       autoHighlight={autoHighlightsFirstRow ? "always" : false}
       footerActionLabel={footerActionLabel}
+      besideHint={displayedGroups.some((group) =>
+        group.items.some((item) => item.kind === "action" && item.runBeside !== undefined),
+      )}
       footerTrailing={footerTrailing}
       inputAccessory={inputAccessory}
       inputProps={{
@@ -3049,6 +3092,7 @@ function OpenCommandPaletteDialog(props: {
         isActionsOnly={isActionsOnly}
         keybindings={keybindings}
         onExecuteItem={executeItem}
+        onExecuteItemBeside={executeItemBeside}
         {...(addProjectCloneFlow?.step === "repository"
           ? {
               emptyStateMessage:

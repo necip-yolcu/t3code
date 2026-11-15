@@ -12,11 +12,14 @@ import {
 } from "react";
 
 import {
+  fitChatPaneGrid,
   isChatSplitOpen,
+  layoutWithPendingBeside,
   resolveChatPanes,
   SINGLE_CHAT_PANE_LAYOUT,
   useChatPanesStore,
   type ChatPaneDirection,
+  type ChatPaneGrid,
   type ResolvedChatPane,
 } from "../chatPanesStore";
 import { useComposerDraftStore } from "../composerDraftStore";
@@ -63,7 +66,10 @@ export function ChatPanes({
 }) {
   const router = useRouter();
   const navigate = useNavigate();
-  const layout = useChatPanesStore((state) => state.layout);
+  const storedLayout = useChatPanesStore((state) => state.layout);
+  const pendingBeside = useChatPanesStore((state) => state.pendingBeside);
+  // A new thread opened beside shows in its own pane from its first render, before the commit.
+  const layout = layoutWithPendingBeside(storedLayout, pendingBeside, routeTarget);
   const panes = resolveChatPanes(layout, routeTarget);
   const paneThreadKeys = useComposerDraftStore(
     useShallow((store) => panes.map((pane) => paneThreadKey(pane.target, store))),
@@ -71,17 +77,32 @@ export function ChatPanes({
   const splitOpen = isChatSplitOpen(layout);
   const vertical = layout.direction === "column";
   const minPaneSize = vertical ? CHAT_PANE_MIN_HEIGHT : CHAT_PANE_MIN_WIDTH;
-  // Too small for two panes: only the focused one renders, and the split returns with room.
-  // The store holds it so notifications treat the hidden pane's thread as not visible.
-  const fitsSplit = useChatPanesStore((state) => state.splitFits);
+  const paneCount = panes.length;
+  // Too small for every pane: only the focused one renders, and the split returns with room.
+  // The store holds it so notifications treat the hidden panes' threads as not visible.
+  const [grid, setGrid] = useState<ChatPaneGrid | null>(SINGLE_PANE_GRID);
   const observeContainer = (container: HTMLDivElement) => {
     const measure = () => {
-      const size = vertical ? container.clientHeight : container.clientWidth;
-      useChatPanesStore.getState().setSplitFits(size >= minPaneSize * 2 + 1);
+      const next =
+        paneCount < 2
+          ? SINGLE_PANE_GRID
+          : fitChatPaneGrid({
+              count: paneCount,
+              direction: layout.direction,
+              width: container.clientWidth,
+              height: container.clientHeight,
+              minWidth: CHAT_PANE_MIN_WIDTH,
+              minHeight: CHAT_PANE_MIN_HEIGHT,
+            });
+      setGrid((previous) => (sameGrid(previous, next) ? previous : next));
+      useChatPanesStore.getState().setSplitFits(next !== null);
     };
     measure();
     return observeResize(container, measure);
   };
+  const alone = !splitOpen || grid === null;
+  // Two panes keep the draggable divider; three or four share the area evenly.
+  const paneGrid = alone || paneCount < 3 ? null : grid;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records the routed thread into the persisted pane layout
   useEffect(() => {
     if (!background) useChatPanesStore.getState().commit(routeTarget);
@@ -140,22 +161,38 @@ export function ChatPanes({
     >
       <div
         ref={observeContainer}
-        className={cn("flex min-h-0 min-w-0 flex-1", vertical ? "flex-col" : "flex-row")}
-        style={{ "--chat-pane-split": layout.ratio } as CSSProperties}
+        className={cn(
+          "min-h-0 min-w-0 flex-1",
+          paneGrid ? "grid gap-px bg-border" : cn("flex", vertical ? "flex-col" : "flex-row"),
+        )}
+        style={
+          paneGrid
+            ? {
+                gridTemplateColumns: `repeat(${paneGrid.columns}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${paneGrid.rows}, minmax(0, 1fr))`,
+              }
+            : ({ "--chat-pane-split": layout.ratio } as CSSProperties)
+        }
       >
         {panes.map((pane, index) => {
-          if (!fitsSplit && !pane.active) return null;
-          const alone = !splitOpen || !fitsSplit;
+          if (alone && !pane.active) return null;
+          const columns = alone ? 1 : (grid?.columns ?? 1);
+          // An odd pane out in a wrapped grid takes the rest of its row.
+          const span =
+            paneGrid && index === paneCount - 1 && paneCount % columns !== 0
+              ? columns - (paneCount % columns) + 1
+              : 1;
+          const column = index % columns;
           const edges = alone
             ? ALL_WINDOW_EDGES
             : {
-                top: !vertical || index === 0,
-                left: vertical || index === 0,
-                right: vertical || index === panes.length - 1,
+                top: index < columns,
+                left: column === 0,
+                right: column + span === columns,
               };
           return (
             <Fragment key={pane.id}>
-              {index > 0 && !alone ? (
+              {index > 0 && !alone && !paneGrid ? (
                 <ChatPaneDivider
                   vertical={vertical}
                   minPaneSize={minPaneSize}
@@ -165,7 +202,8 @@ export function ChatPanes({
               <ChatPane
                 pane={pane}
                 inSplit={splitOpen}
-                sized={index === 0 && !alone}
+                sized={index === 0 && !alone && !paneGrid}
+                gridSpan={paneGrid ? span : null}
                 vertical={vertical}
                 alone={alone}
                 edges={edges}
@@ -190,6 +228,12 @@ export function ChatPanes({
       </div>
     </SidebarInset>
   );
+}
+
+const SINGLE_PANE_GRID: ChatPaneGrid = { columns: 1, rows: 1 };
+
+function sameGrid(left: ChatPaneGrid | null, right: ChatPaneGrid | null): boolean {
+  return left?.columns === right?.columns && left?.rows === right?.rows;
 }
 
 function paneThreadKey(
@@ -300,6 +344,7 @@ function ChatPane({
   pane,
   inSplit,
   sized,
+  gridSpan,
   vertical,
   alone,
   edges,
@@ -317,6 +362,8 @@ function ChatPane({
   inSplit: boolean;
   /** The first pane takes the split ratio; the second fills the rest. */
   sized: boolean;
+  /** Columns a grid cell spans, or null outside a grid of three or four panes. */
+  gridSpan: number | null;
   vertical: boolean;
   /** The only pane rendered, because the window cannot fit the split. */
   alone: boolean;
@@ -370,7 +417,11 @@ function ChatPane({
       ref={observePane}
       className={cn(
         "relative flex min-h-0 min-w-0 flex-col",
-        sized ? "shrink grow-0 basis-[calc(var(--chat-pane-split)*100%)]" : "flex-1 basis-0",
+        gridSpan !== null
+          ? "bg-background"
+          : sized
+            ? "shrink grow-0 basis-[calc(var(--chat-pane-split)*100%)]"
+            : "flex-1 basis-0",
         !alone && (vertical ? "min-h-60" : "min-w-90"),
         // Layout containment anchors the header's fixed title bar controls to this pane.
         !alone && "[contain:layout]",
@@ -379,7 +430,10 @@ function ChatPane({
           "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-30 before:h-0.5 before:bg-primary/60",
         !alone && passive && "[&_[data-chat-header]]:opacity-60",
       )}
-      style={windowEdgeStyle(edges)}
+      style={{
+        ...windowEdgeStyle(edges),
+        ...(gridSpan !== null && gridSpan > 1 ? { gridColumn: `span ${gridSpan}` } : {}),
+      }}
       data-chat-pane={pane.id}
       data-chat-pane-narrow={(!alone && narrow) || undefined}
       data-chat-pane-below-titlebar={!edges.top || undefined}

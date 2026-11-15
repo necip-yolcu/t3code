@@ -8,6 +8,8 @@ import {
   closeChatPane,
   isChatSplitOpen,
   commitChatPanes,
+  fitChatPaneGrid,
+  layoutWithPendingBeside,
   openChatSplit,
   resolveChatPanes,
   SINGLE_CHAT_PANE_LAYOUT,
@@ -102,16 +104,47 @@ describe("chat panes", () => {
     ).toBe(layout);
   });
 
-  it("replaces the unfocused pane when the split is full", () => {
-    const layout = openChatSplit(split(thread("a"), thread("b")), {
-      routeTarget: thread("a"),
-      target: thread("c"),
-      createPaneId: paneIds(),
-    });
-    expect(shown(layout, thread("a"))).toEqual([
+  it("adds panes up to four, then replaces the first unfocused one", () => {
+    const ids = paneIds();
+    const open = (layout: ChatPanesLayout, target: ThreadRouteTarget) =>
+      openChatSplit(layout, { routeTarget: thread("a"), target, createPaneId: ids });
+    const four = [thread("b"), thread("c"), thread("d")].reduce(open, SINGLE_CHAT_PANE_LAYOUT);
+    expect(shown(four, thread("a")).map((pane) => pane.target)).toEqual(["a", "b", "c", "d"]);
+    expect(shown(open(four, thread("e")), thread("a"))).toEqual([
       { id: "primary", target: "a", active: true },
-      { id: "pane-1", target: "c", active: false },
+      { id: "pane-1", target: "e", active: false },
+      { id: "pane-2", target: "c", active: false },
+      { id: "pane-3", target: "d", active: false },
     ]);
+  });
+
+  it("opens the next route beside the anchor thread instead of replacing it", () => {
+    const pending = { anchor: thread("a"), paneId: "beside" };
+    const single = layoutWithPendingBeside(SINGLE_CHAT_PANE_LAYOUT, pending, draft("new"));
+    expect(shown(single, draft("new"))).toEqual([
+      { id: "primary", target: "a", active: false },
+      { id: "beside", target: "new", active: true },
+    ]);
+    const split3 = layoutWithPendingBeside(split(thread("a"), thread("b")), pending, draft("new"));
+    expect(shown(split3, draft("new")).map((pane) => pane.target)).toEqual(["a", "b", "new"]);
+    // A route that stays on the anchor, such as a reused draft, leaves the layout alone.
+    expect(layoutWithPendingBeside(SINGLE_CHAT_PANE_LAYOUT, pending, thread("a"))).toBe(
+      SINGLE_CHAT_PANE_LAYOUT,
+    );
+  });
+
+  it.each([
+    ["two in a row", 2, "row", 800, 600, { columns: 2, rows: 1 }],
+    ["two too narrow", 2, "row", 700, 600, null],
+    ["three in a row", 3, "row", 1100, 600, { columns: 3, rows: 1 }],
+    ["four wrap into two columns", 4, "row", 1000, 600, { columns: 2, rows: 2 }],
+    ["three wrap, the last spans", 3, "row", 800, 600, { columns: 2, rows: 2 }],
+    ["four too small to wrap", 4, "row", 1000, 400, null],
+    ["three stacked", 3, "column", 500, 800, { columns: 1, rows: 3 }],
+  ] as const)("fits %s", (_name, count, direction, width, height, expected) => {
+    expect(
+      fitChatPaneGrid({ count, direction, width, height, minWidth: 360, minHeight: 240 }),
+    ).toEqual(expected);
   });
 
   it("swapping keeps each pane's thread, focus and size", () => {

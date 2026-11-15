@@ -46,7 +46,7 @@ function clampChatPaneRatio(ratio: number): number {
   return Math.min(1 - MIN_CHAT_PANE_RATIO, Math.max(MIN_CHAT_PANE_RATIO, ratio));
 }
 
-const MAX_CHAT_PANES = 2;
+const MAX_CHAT_PANES = 4;
 
 function chatPaneTargetKey(target: ThreadRouteTarget): string {
   return target.kind === "server" ? scopedThreadKey(target.threadRef) : `draft:${target.draftId}`;
@@ -200,6 +200,58 @@ export function closeChatPane(
   return { layout: { ...layout, panes, activePaneId }, focusTarget };
 }
 
+export interface ChatPaneGrid {
+  readonly columns: number;
+  readonly rows: number;
+}
+
+/**
+ * How `count` panes fit the chat area: one line along `direction` when it has room, else two
+ * columns that wrap, else null and only the focused pane renders.
+ */
+export function fitChatPaneGrid(input: {
+  readonly count: number;
+  readonly direction: ChatPaneDirection;
+  readonly width: number;
+  readonly height: number;
+  readonly minWidth: number;
+  readonly minHeight: number;
+}): ChatPaneGrid | null {
+  const fits = ({ columns, rows }: ChatPaneGrid) =>
+    input.width >= columns * input.minWidth + columns - 1 &&
+    input.height >= rows * input.minHeight + rows - 1;
+  const line =
+    input.direction === "row"
+      ? { columns: input.count, rows: 1 }
+      : { columns: 1, rows: input.count };
+  if (fits(line)) return line;
+  const wrapped = { columns: 2, rows: Math.ceil(input.count / 2) };
+  return input.count > 2 && fits(wrapped) ? wrapped : null;
+}
+
+/**
+ * Where the next route lands instead of replacing the focused pane: in a new pane beside the
+ * `anchor` thread. Render and commit read it the same way, so the new pane never flickers in.
+ */
+export interface PendingChatPaneBeside {
+  readonly anchor: ThreadRouteTarget;
+  readonly paneId: string;
+}
+
+export function layoutWithPendingBeside(
+  layout: ChatPanesLayout,
+  pending: PendingChatPaneBeside | null,
+  routeTarget: ThreadRouteTarget,
+): ChatPanesLayout {
+  if (pending === null) return layout;
+  if (chatPaneTargetKey(pending.anchor) === chatPaneTargetKey(routeTarget)) return layout;
+  return openChatSplit(layout, {
+    routeTarget: pending.anchor,
+    target: routeTarget,
+    createPaneId: () => pending.paneId,
+  });
+}
+
 /** Trades the panes' places; each keeps its own size. */
 export function swapChatPanes(layout: ChatPanesLayout): ChatPanesLayout {
   if (!isChatSplitOpen(layout)) return layout;
@@ -244,9 +296,12 @@ function readPersistedLayout(value: unknown): ChatPanesLayout {
 
 interface ChatPanesStoreState {
   readonly layout: ChatPanesLayout;
-  /** Whether the chat area is wide enough to render both panes of a split. */
+  /** Whether the chat area has room to render every pane of a split. */
   readonly splitFits: boolean;
   readonly setSplitFits: (splitFits: boolean) => void;
+  readonly pendingBeside: PendingChatPaneBeside | null;
+  /** The next route opens beside `anchor`; cleared once a route uses it or `clear` runs. */
+  readonly openNextBeside: (anchor: ThreadRouteTarget) => () => void;
   readonly commit: (routeTarget: ThreadRouteTarget) => void;
   readonly openSplit: (input: {
     readonly routeTarget: ThreadRouteTarget;
@@ -267,9 +322,24 @@ export const useChatPanesStore = create<ChatPanesStoreState>()(
       splitFits: true,
       setSplitFits: (splitFits) =>
         set((state) => (state.splitFits === splitFits ? state : { splitFits })),
+      pendingBeside: null,
+      openNextBeside: (anchor) => {
+        const pending = { anchor, paneId: randomUUID() };
+        set({ pendingBeside: pending });
+        return () =>
+          set((state) => (state.pendingBeside === pending ? { pendingBeside: null } : state));
+      },
       commit: (routeTarget) =>
         set((state) => {
-          const layout = commitChatPanes(state.layout, routeTarget);
+          const pending = state.pendingBeside;
+          const used =
+            pending !== null &&
+            chatPaneTargetKey(pending.anchor) !== chatPaneTargetKey(routeTarget);
+          const layout = commitChatPanes(
+            layoutWithPendingBeside(state.layout, pending, routeTarget),
+            routeTarget,
+          );
+          if (used) return { layout, pendingBeside: null };
           return layout === state.layout ? state : { layout };
         }),
       openSplit: (input) =>

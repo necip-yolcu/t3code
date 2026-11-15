@@ -2,7 +2,7 @@ import { startPaletteThreadDrag } from "./CommandPalette.drag";
 import { useLegendListRef } from "~/hooks/useLegendListRef";
 import { type ResolvedKeybindingsConfig } from "@t3tools/contracts";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, Columns2Icon } from "lucide-react";
 import { type ReactNode, type RefObject, useState } from "react";
 import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
@@ -25,6 +25,8 @@ import {
 } from "./ui/command";
 import { getVirtualizedScrollFadeClassName } from "./ui/scroll-area";
 import { ProjectPinButton } from "./ProjectPinButton";
+import { Button } from "./ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { SearchMatchHintLine, ThreadSearchMatchExcerpt } from "./ThreadSearchMatch";
 
 interface CommandPaletteResultsProps {
@@ -34,6 +36,7 @@ interface CommandPaletteResultsProps {
   isActionsOnly: boolean;
   keybindings: ResolvedKeybindingsConfig;
   onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
+  onExecuteItemBeside?: (item: CommandPaletteActionItem) => void;
 }
 
 function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActionsOnly: boolean }) {
@@ -68,6 +71,7 @@ export function CommandPaletteResults(props: CommandPaletteResultsProps) {
                   keybindings={props.keybindings}
                   isActive={props.highlightedItemValue === item.value}
                   onExecuteItem={props.onExecuteItem}
+                  onExecuteItemBeside={props.onExecuteItemBeside}
                 />
               )
             }
@@ -142,6 +146,7 @@ export function CommandPaletteVirtualizedResults(props: CommandPaletteVirtualize
               keybindings={props.keybindings}
               isActive={props.highlightedItemValue === row.item.value}
               onExecuteItem={props.onExecuteItem}
+              onExecuteItemBeside={props.onExecuteItemBeside}
             />
           )
         }
@@ -240,6 +245,7 @@ function CommandPaletteResultRow(props: {
   isActive: boolean;
   keybindings: ResolvedKeybindingsConfig;
   onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
+  onExecuteItemBeside?: ((item: CommandPaletteActionItem) => void) | undefined;
 }) {
   const shortcutLabel = props.item.shortcutCommand
     ? shortcutLabelForCommand(props.keybindings, props.item.shortcutCommand)
@@ -292,6 +298,13 @@ function CommandPaletteResultRow(props: {
         </span>
       )}
       {props.item.titleTrailingContent}
+      {props.item.kind === "action" && props.item.runBeside && props.onExecuteItemBeside ? (
+        <OpenBesideButton
+          onOpen={() => {
+            if (props.item.kind === "action") props.onExecuteItemBeside?.(props.item);
+          }}
+        />
+      ) : null}
       {props.item.kind === "action" && props.item.pin ? (
         <ProjectPinButton
           name={props.item.pin.name}
@@ -310,5 +323,35 @@ function CommandPaletteResultRow(props: {
         <ChevronRightIcon className="-me-0.5 ms-auto size-4 shrink-0 text-muted-foreground/70" />
       ) : null}
     </CommandItem>
+  );
+}
+
+/** Opens the row's action in a new split pane beside the current thread, as Alt+Enter does. */
+function OpenBesideButton(props: { onOpen: () => void }) {
+  return (
+    <span className="ml-auto flex opacity-0 in-data-highlighted:opacity-100 pointer-coarse:opacity-100">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              size="icon-xs"
+              variant="ghost-muted"
+              tabIndex={-1}
+              aria-label="Open beside (Alt+Enter)"
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                props.onOpen();
+              }}
+            >
+              <Columns2Icon className="size-3.5" />
+            </Button>
+          }
+        />
+        <TooltipPopup side="top">Open beside (⌥↵)</TooltipPopup>
+      </Tooltip>
+    </span>
   );
 }

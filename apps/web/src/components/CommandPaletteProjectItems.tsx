@@ -74,7 +74,10 @@ export function buildProjectSearchItems(input: ProjectItemsInput) {
 
 /** Projects as targets of the "New thread in..." submenu. */
 export function buildNewThreadInProjectItems(
-  input: ProjectItemsInput & { readonly currentProjectKey: string | null },
+  input: ProjectItemsInput & {
+    readonly currentProjectKey: string | null;
+    readonly runProjectBeside?: (project: CommandPaletteProject) => Promise<void>;
+  },
 ) {
   return buildProjectActionItems({
     projects: input.projects,
@@ -96,6 +99,7 @@ export function buildNewThreadInProjectItems(
     ),
     icon: projectFaviconIcon,
     runProject: input.runProject,
+    ...(input.runProjectBeside ? { runProjectBeside: input.runProjectBeside } : {}),
     ...(input.pin ? { pin: input.pin } : {}),
   });
 }
