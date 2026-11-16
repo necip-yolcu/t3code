@@ -1619,6 +1619,19 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:list-text-generator-models",
       tag: WS_METHODS.serverListTextGeneratorModels,
     }),
+    // Polled by the T3+ sidebar resource line, which needs a fresh sample on its own schedule.
+    readHostResources: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:read-host-resources",
+      tag: WS_METHODS.serverGetHostResources,
+      // Bounded so a request lost to a dropped connection never holds up the next poll.
+      execute: (input: EnvironmentRpcInput<typeof WS_METHODS.serverGetHostResources>) =>
+        request(WS_METHODS.serverGetHostResources, input).pipe(
+          Effect.timeoutOrElse({
+            duration: "4 seconds",
+            orElse: () => Effect.die(new Error("Host resources timed out.")),
+          }),
+        ),
+    }),
     retryResourceTelemetry: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:retry-resource-telemetry",
       tag: WS_METHODS.serverRetryResourceTelemetry,
