@@ -574,7 +574,8 @@ const makeProviderAdapter = Effect.fnUntraced(function* (
 
 function layerTest(input: {
   readonly state: Ref.Ref<TestProviderRuntimeState>;
-  readonly idleTimeoutMs: number;
+  /** Omit to follow the server's providerIdleShutdownMinutes setting. */
+  readonly idleTimeoutMs?: number;
   readonly maxIdlePinMs?: number;
   readonly failEventStream?: boolean;
   readonly capabilities?: OrchestrationV2ProviderCapabilities;
@@ -673,7 +674,7 @@ function layerTest(input: {
     layerConfiguredMcpRegistry,
     McpProviderSessions.layer,
     ProviderSessionManager.layerWithOptions({
-      idleTimeoutMs: input.idleTimeoutMs,
+      ...(input.idleTimeoutMs === undefined ? {} : { idleTimeoutMs: input.idleTimeoutMs }),
       ...(input.maxIdlePinMs === undefined ? {} : { maxIdlePinMs: input.maxIdlePinMs }),
     }).pipe(
       Layer.provide(
@@ -1910,6 +1911,42 @@ it.effect.each(["session metadata", "session status changes", "provider work"] a
         assert.equal((yield* Ref.get(state)).closeCount, 1);
       }).pipe(Effect.provide(layerTest({ state, idleTimeoutMs: 1_000 })));
     }),
+);
+
+it.effect("ProviderSessionManagerV2 stops idle sessions after the configured minutes", () =>
+  Effect.gen(function* () {
+    const state = yield* Ref.make(emptyState);
+    // One layer value, so the manager and the test share a settings service.
+    const serverSettingsLayer = ServerSettings.layerTest();
+    yield* Effect.gen(function* () {
+      const eventSink = yield* EventSink.EventSinkV2;
+      const idAllocator = yield* IdAllocator.IdAllocatorV2;
+      const manager = yield* ProviderSessionManager.ProviderSessionManagerV2;
+      const serverSettings = yield* ServerSettings.ServerSettingsService;
+      const threadId = ThreadId.make("thread-provider-session-manager-idle-setting");
+      const providerSessionId = yield* idAllocator.allocate.providerSession({
+        providerInstanceId: modelSelection.instanceId,
+        threadId,
+      });
+      yield* eventSink.write({
+        events: [
+          yield* makeThreadCreatedEvent({ idAllocator, threadId, now: yield* DateTime.now }),
+        ],
+      });
+      yield* manager.open({ threadId, providerSessionId, modelSelection, runtimePolicy });
+
+      // A lowered setting applies from the session's next activity, not the next restart.
+      yield* serverSettings.updateSettings({ providerIdleShutdownMinutes: 2 });
+      assert.isTrue(Option.isSome(yield* manager.get(providerSessionId)));
+      yield* TestClock.adjust("119 seconds");
+      assert.isTrue(yield* manager.isLive(providerSessionId));
+      yield* TestClock.adjust("1 second");
+      assert.isFalse(yield* manager.isLive(providerSessionId));
+      assert.equal((yield* Ref.get(state)).closeCount, 1);
+    }).pipe(
+      Effect.provide(Layer.merge(layerTest({ state, serverSettingsLayer }), serverSettingsLayer)),
+    );
+  }),
 );
 
 it.effect("ProviderSessionManagerV2 interrupts event subscriptions on server shutdown", () =>

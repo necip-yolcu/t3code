@@ -641,6 +641,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["claude context compaction idle cache tokens usage summary resume"],
   },
   {
+    id: "idle-provider-shutdown",
+    title: "Stop idle agents",
+    to: "/settings/providers",
+    scope: "environment-defaults",
+    searchTerms: ["idle agent process memory ram shutdown stop timeout mcp resume claude codex"],
+  },
+  {
     id: "auto-settle-merged-threads",
     title: "Auto-settle merged threads",
     to: "/settings/threads",

@@ -1587,6 +1587,75 @@ function ScopedCompactIdleThreadsRow() {
   );
 }
 
+const IDLE_SHUTDOWN_MINUTE_CHOICES = [5, 10, 15, 30, 60, 120, 240, 480];
+
+const idleShutdownLabel = (minutes: number) =>
+  minutes < 60
+    ? `After ${minutes} minutes`
+    : `After ${minutes / 60} hour${minutes === 60 ? "" : "s"}`;
+
+/** The Providers panel can render without a settings scope, as its tests do; this row needs one. */
+export function IdleProviderShutdownRow() {
+  return useOptionalSettingsScope() === null ? null : <ScopedIdleProviderShutdownRow />;
+}
+
+function ScopedIdleProviderShutdownRow() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const mixed = useScopedSettingsMixed(["providerIdleShutdownMinutes"]);
+  const minutes = settings.providerIdleShutdownMinutes;
+  // A hand-edited settings file can hold any minute count the schema allows.
+  const choices = IDLE_SHUTDOWN_MINUTE_CHOICES.includes(minutes)
+    ? IDLE_SHUTDOWN_MINUTE_CHOICES
+    : [...IDLE_SHUTDOWN_MINUTE_CHOICES, minutes].toSorted((a, b) => a - b);
+
+  return (
+    <SettingsRow
+      serverScoped
+      settingKeys={["providerIdleShutdownMinutes"]}
+      mixed={mixed}
+      {...searchableSetting("idle-provider-shutdown")}
+      description="Stop an idle agent's process and its MCP servers to free memory. The next message resumes the same conversation. Agents with a turn, request, or background task running are kept."
+      resetAction={
+        minutes !== DEFAULT_UNIFIED_SETTINGS.providerIdleShutdownMinutes ? (
+          <SettingResetButton
+            label="stop idle agents"
+            onClick={() =>
+              updateSettings({
+                providerIdleShutdownMinutes: DEFAULT_UNIFIED_SETTINGS.providerIdleShutdownMinutes,
+              })
+            }
+          />
+        ) : null
+      }
+      control={
+        <Select
+          value={mixed ? null : String(minutes)}
+          onValueChange={(value) => {
+            const next = Number(value);
+            if (choices.includes(next)) updateSettings({ providerIdleShutdownMinutes: next });
+          }}
+        >
+          <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Stop idle agents">
+            <SelectValue>
+              {(value: string | null) =>
+                value === null ? "Mixed" : idleShutdownLabel(Number(value))
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="end" alignItemWithTrigger={false}>
+            {choices.map((choice) => (
+              <SelectItem hideIndicator key={choice} value={String(choice)}>
+                {idleShutdownLabel(choice)}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      }
+    />
+  );
+}
+
 export function ThreadsSettingsPanel() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();

@@ -2,6 +2,7 @@ import { AgentScope } from "@t3tools/shared/AgentScope";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import {
+  DEFAULT_PROVIDER_IDLE_SHUTDOWN_MINUTES,
   isOrchestrationV2WorkActive,
   ModelSelection,
   OrchestrationV2DomainEvent,
@@ -56,7 +57,7 @@ import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
 
-const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const DEFAULT_IDLE_TIMEOUT_MS = DEFAULT_PROVIDER_IDLE_SHUTDOWN_MINUTES * 60 * 1000;
 const DEFAULT_MAX_IDLE_PIN_MS = 4 * 60 * 60 * 1000;
 const RELEASE_SCOPE_CLOSE_TIMEOUT_MS = 30 * 1000;
 /** Past adapters' own 10 s stop fallbacks, so they settle first when the provider answers at all. */
@@ -446,7 +447,17 @@ export const layerWithOptions = (
         readonly providerSessionId: ProviderSessionId;
         readonly threadId: ThreadId;
       }) => `${input.providerSessionId}\u0000${input.threadId}`;
-      const idleTimeoutMs = Math.max(1, options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS);
+      // Read live so a changed setting applies from each session's next idle period.
+      const sleepIdleTimeout = (
+        options.idleTimeoutMs !== undefined
+          ? Effect.succeed(Duration.millis(Math.max(1, options.idleTimeoutMs)))
+          : Option.isNone(serverSettings)
+            ? Effect.succeed(Duration.millis(DEFAULT_IDLE_TIMEOUT_MS))
+            : serverSettings.value.getSettings.pipe(
+                Effect.map((settings) => Duration.minutes(settings.providerIdleShutdownMinutes)),
+                Effect.orElseSucceed(() => Duration.millis(DEFAULT_IDLE_TIMEOUT_MS)),
+              )
+      ).pipe(Effect.flatMap((timeout) => Effect.sleep(timeout)));
       const maxIdlePinMs = Math.max(0, options.maxIdlePinMs ?? DEFAULT_MAX_IDLE_PIN_MS);
       interface PreparedMcpCredential {
         readonly mcpCredentialId: string | undefined;
@@ -1228,7 +1239,7 @@ export const layerWithOptions = (
                 pinnedForMs: now - pinnedSinceMs,
               });
               // Recheck on this fiber; scheduleIdleReleaseInternal would interrupt it and self-deadlock.
-              yield* Effect.sleep(Duration.millis(idleTimeoutMs));
+              yield* sleepIdleTimeout;
               return yield* releaseIfStillIdle(input);
             }
             yield* Effect.logWarning("orchestration-v2.driver-session.idle-release-pin-expired", {
@@ -1285,7 +1296,7 @@ export const layerWithOptions = (
 
         yield* cancelIdleFiber(entry.idleFiber);
         const generation = entry.idleGeneration + 1;
-        const idleFiber = yield* Effect.sleep(Duration.millis(idleTimeoutMs)).pipe(
+        const idleFiber = yield* sleepIdleTimeout.pipe(
           Effect.andThen(releaseIfStillIdle({ providerSessionId, generation })),
           Effect.forkIn(layerScope),
         );
@@ -1638,7 +1649,7 @@ export const layerWithOptions = (
           if (tracked === undefined) return;
           const [threadId, pending] = tracked;
           const generation = pending.generation + 1;
-          const fiber = yield* Effect.sleep(Duration.millis(idleTimeoutMs)).pipe(
+          const fiber = yield* sleepIdleTimeout.pipe(
             Effect.andThen(unloadIdleThread({ providerSessionId, threadId, generation })),
             Effect.forkIn(layerScope),
           );
@@ -1732,7 +1743,7 @@ export const layerWithOptions = (
           );
           // Wait outside the lock so the next attach is not blocked.
           if (outcome === "deferred") {
-            yield* Effect.sleep(Duration.millis(idleTimeoutMs));
+            yield* sleepIdleTimeout;
             return yield* unloadIdleThread(input);
           }
         },
