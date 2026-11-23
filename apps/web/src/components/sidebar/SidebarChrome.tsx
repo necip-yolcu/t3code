@@ -1,6 +1,12 @@
-import { ArrowLeftIcon, ArrowRightIcon, ChartNoAxesColumnIcon, SettingsIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ChartNoAxesColumnIcon,
+  ClipboardListIcon,
+  SettingsIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 
 import { useAtomValue } from "@effect/atom-react";
@@ -37,6 +43,7 @@ import { isSidebarUtilityPage, useNavigateToMainApp } from "./mainAppLocation";
 import { SidebarClock } from "./SidebarClock";
 import { SidebarHostResources } from "./SidebarHostResources";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
+import { TrackerModal } from "../tracker/TrackerModal";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
@@ -228,6 +235,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
     select: (location) => isSidebarUtilityPage(location.pathname),
   });
   const pullRequestsSupported = usePullRequestsSupported();
+  const [trackerOpen, setTrackerOpen] = useState(false);
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -286,8 +294,17 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             label="Usage"
             onClick={handleUsageClick}
           />
+          <SidebarUtilityItem
+            icon={<ClipboardListIcon />}
+            label="Tracker"
+            onClick={() => {
+              closeMobileSidebar();
+              setTrackerOpen(true);
+            }}
+          />
         </>
       )}
+      <TrackerModal open={trackerOpen} onOpenChange={setTrackerOpen} />
       <SidebarClock />
       <SidebarThreadUndoNotice />
       <SidebarUpdatePill />
