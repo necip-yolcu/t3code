@@ -655,6 +655,19 @@ export const make = Effect.gen(function* () {
     installContextMenu(window, window.webContents);
     window.webContents.on("did-attach-webview", (_event, contents) => {
       installContextMenu(window, contents);
+      // T3+: guests that never register as a preview tab (the tracker) keep this; tabs replace it.
+      contents.setWindowOpenHandler((details) => {
+        if (PreviewManager.previewWindowOpenAction(details) === "popup") {
+          return {
+            action: "allow",
+            overrideBrowserWindowOptions: PreviewManager.POPUP_WINDOW_OPTIONS,
+          };
+        }
+        if (Option.isSome(ElectronShell.parseSafeExternalUrl(details.url))) {
+          void runPromise(electronShell.openExternal(details.url));
+        }
+        return { action: "deny" };
+      });
       void runPromise(previewManager.prepareWebview(contents));
     });
 

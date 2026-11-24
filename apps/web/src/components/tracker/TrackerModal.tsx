@@ -62,6 +62,8 @@ function TrackerWebview(props: { environmentId: EnvironmentId; url: string }) {
       src={props.url}
       partition={config.partition}
       webpreferences={config.webPreferences}
+      // Electron needs allowpopups at attachment; the desktop window-open handler decides each one.
+      {...({ allowpopups: "true" } as unknown as { readonly allowpopups?: boolean })}
     />
   );
 }
@@ -87,7 +89,12 @@ export function TrackerModal(props: { open: boolean; onOpenChange: (open: boolea
   };
 
   return (
-    <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
+    // Sign-in popups take focus from the page, which would otherwise close the modal.
+    <DialogPrimitive.Root
+      disablePointerDismissal
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+    >
       <DialogPrimitive.Portal>
         <DialogBackdrop />
         <DialogPrimitive.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 lg:p-10">
